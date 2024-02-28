@@ -222,6 +222,13 @@
                                       {:anti-forgery-token
                                        ring.middleware.anti-forgery/*anti-forgery-token*})})
 
+         "about.html"
+         (fn [req]
+           {:status 200,
+            :headers {"Content-Type" "text/html"}
+            :body (selmer/render-file "about.html"
+                                      {})})
+
          true (constantly
                {:status 404
                 :headers {"Content-Type" "text/html"}})}]))

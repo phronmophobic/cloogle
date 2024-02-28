@@ -16,6 +16,9 @@
   .search-results {
     margin-top: 20px;
   }
+  .search-tip {
+      margin-top: 20px;
+  }
 </style>
 <script>
   function setStatus(s){
@@ -142,6 +145,10 @@ function handleKeyPress(event) {
 </nav>
 
 <div class="container">
+  <div class="alert alert-primary search-tip" role="alert">
+    Tip: Longer queries are better. Write the doc string for the function you want to find.
+  </div>
+
     <div class="search-bar">
       <input type="text" id="search-input" class="form-control" placeholder="Search..." onkeypress="handleKeyPress(event)">
       <button class="btn btn-primary ml-2" onclick="search()">Search</button>

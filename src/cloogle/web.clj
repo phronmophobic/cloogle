@@ -25,10 +25,11 @@
 (def bge-path "ggml-model-f16.gguf")
 
 (defonce ctx
-  (llama/create-context (.getCanonicalPath (io/file bge-path))
-                          {;; :n-gpu-layers 0
+  (delay
+    (llama/create-context (.getCanonicalPath (io/file bge-path))
+                          { ;; :n-gpu-layers 0
                            :n-ctx 512
-                           :embedding true}))
+                           :embedding true})))
 
 (defn get-embedding
   ([ctx s]
@@ -55,7 +56,7 @@
 (def bge-index
   (delay
     (let [index
-          (usearch/init {:dimensions (raw-gguf/llama_n_embd (:model ctx))
+          (usearch/init {:dimensions (raw-gguf/llama_n_embd (:model @ctx))
                          :quantization :quantization/f32})]
       (usearch/load index
                     (.getCanonicalPath (io/file "bge-all.usearch")))
@@ -77,7 +78,7 @@
   ([s]
    (search-bge* s 4))
   ([s n]
-   (let [emb (get-embedding ctx s)
+   (let [emb (get-embedding @ctx s)
          results (usearch/search @bge-index (float-array emb) n)]
      (into []
            (comp (map first)

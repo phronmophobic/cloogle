@@ -2,8 +2,7 @@
 
  :deps {org.clojure/clojure {:mvn/version
                              "1.12.0-alpha5"}
-        com.phronemophobic/usearch-clj { ;; :mvn/version "1.0"
-                                        :local/root "../.."}
+        com.phronemophobic/usearch-clj {:mvn/version "1.0"}
 
         ;; com.phronemophobic/llama-clj-combined {:mvn/version "0.8.1-SNAPSHOT"}
         com.phronemophobic/llama-clj {:mvn/version "0.8.1-SNAPSHOT"}

@@ -29,7 +29,7 @@
     // Prepare the POST request with JSON encoded data
     var requestData = JSON.stringify({ search: searchTerm });
 
-            setStatus("searching...");
+            setStatus("Searching...");
 
     // Simulate making a fetch POST request with JSON encoded data
     // In a real-world scenario, you'd use the fetch API like this:
@@ -130,15 +130,10 @@ function handleKeyPress(event) {
       <input type="text" id="search-input" class="form-control" placeholder="Search..." onkeypress="handleKeyPress(event)">
       <button class="btn btn-primary ml-2" onclick="search()">Search</button>
     </div>
-    <div id="status"></div>
+    <div id="status" class="text-muted" ></div>
   <div class="search-results">
     <table class="table">
       <thead id="results-table-header">
-        <!-- <tr> -->
-        <!--   <th>ID</th> -->
-        <!--   <th>Name</th> -->
-        <!--   <th>Description</th> -->
-        <!-- </tr> -->
       </thead>
       <tbody id="results-table-body">
         <!-- Results will be populated here -->

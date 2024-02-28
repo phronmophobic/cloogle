@@ -123,6 +123,10 @@
 
 (defn search-openai [s n]
   (let [emb (get-openai-embedding s)
+        _ (when (not= (count emb)
+                      1536)
+            (throw (ex-info "Invalid embedding"
+                            {:embedding emb})))
         results (usearch/search @openai-index (float-array emb) n)]
     (into []
           (comp (map first)

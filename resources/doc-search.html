@@ -30,6 +30,7 @@
   function updateSearchBar(s){
     var searchParams = new URLSearchParams(window.location.search);
     searchParams.set("q", s);
+    document.title = 'Cloogle - ' + s;
     window.history.pushState({}, "", '?' + searchParams.toString());
   }
 

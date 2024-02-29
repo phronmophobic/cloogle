@@ -121,7 +121,7 @@
         first
         :embedding)))
 
-(defn search-openai [s n]
+(defn search-openai* [s n]
   (let [emb (get-openai-embedding s)
         _ (when (not= (count emb)
                       1536)
@@ -132,6 +132,14 @@
           (comp (map first)
                 (map #(d/get-value @kvdb var-table %)))
           results)))
+
+(defn search-openai [s n]
+  @(.submit
+    ^java.util.concurrent.ExecutorService
+    @search-executor
+    ^java.util.concurrent.Callable
+    (fn []
+      (search-openai* s n))))
 
 (defn page [title body]
   (hiccup.page/html5

@@ -185,7 +185,7 @@
                                          sha
                                          "/"
                                          filename)}
-                               name])
+                               ns])
                   :name (->html [:a {:href
                                           (str
                                            "https://github.com/"

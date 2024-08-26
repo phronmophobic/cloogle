@@ -231,8 +231,12 @@
            {:status 200,
             :headers {"Content-Type" "text/html"}
             :body (selmer/render-file "doc-search.html"
-                                      {:anti-forgery-token
-                                       ring.middleware.anti-forgery/*anti-forgery-token*})})
+                                      (merge
+                                       (when-let [q (get-in req [:params :q])]
+                                         (let [og-title-tag (->html)]
+                                           {:og-title }))
+                                       {:anti-forgery-token
+                                        ring.middleware.anti-forgery/*anti-forgery-token*}))})
 
          "about.html"
          (fn [req]

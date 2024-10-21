@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>asldkfj{% if title|not-empty %} - {{title}}{% endif %}</title>
+<meta property="og:title" content="Cloogle{% if title|not-empty %} - {{title}}{% endif %}"/>
+<meta property="og:description" content="Semantic search across half a million clojure functions."/>
+<!-- Bootstrap CSS -->
+<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
+<style>
+  .search-bar {
+    margin-top: 20px;
+    display: flex;
+  }
+  .search-results {
+    margin-top: 20px;
+  }
+  .search-tip {
+      margin-top: 20px;
+  }
+</style>
+<script>
+  function setStatus(s){
+      var statusElem = document.getElementById("status");
+      statusElem.textContent=s;
+  }
+
+
+  function updateSearchBar(s, tables){
+    var searchParams = new URLSearchParams(window.location.search);
+    searchParams.set("q", s);
+    searchParams.set("tables", tables.join(','));
+    document.title = 'Cloogle - ' + s;
+    window.history.pushState({}, "", '?' + searchParams.toString());
+  }
+
+  // This function simulates making a POST request with JSON encoded data
+  function search() {
+    // Get the search input value
+    var searchTerm = document.getElementById("search-input").value;
+    const checkedBoxes = document.querySelectorAll('input[name=tables]:checked');
+    const selectedTables = Array.from(checkedBoxes).map(checkbox => checkbox.value);
+
+    // Prepare the POST request with JSON encoded data
+    var requestData = JSON.stringify({ search: searchTerm,
+                                       tables: selectedTables});
+
+            setStatus("Searching...");
+
+    // Simulate making a fetch POST request with JSON encoded data
+    // In a real-world scenario, you'd use the fetch API like this:
+    fetch('/search-name', {
+      method: 'POST',
+      headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': '{{anti-forgery-token}}',
+      },
+      body: requestData
+    })
+    .then(response => response.json())
+    .then(data => populateResults(data))
+    .then(_ => updateSearchBar(searchTerm, selectedTables))
+    .catch(error => console.error('Error:', error));
+    
+    // Instead, we'll simulate the request with static response data
+    // var fakeApiResponse = [
+    //   { id: 1, name: 'Result 1', description: 'Description 1' },
+    //   { id: 2, name: 'Result 2', description: 'Description 2' },
+    //   { id: 3, name: 'Result 3', description: 'Description 3' },
+    // ];
+
+    // // Populate the table with static results
+    // populateResults(fakeApiResponse.filter(result =>
+    //   result.name.toLowerCase().includes(searchTerm.toLowerCase())
+    // ));
+  }
+
+  function populateResults(results) {
+
+
+    var header = results.header;
+
+      setStatus("");
+    // Populate the results table
+    var resultsHeader = document.getElementById("results-table-header");
+    resultsHeader.innerHTML = ""; // Clear previous results
+    var headerRow = resultsHeader.insertRow();
+    for ( var i = 0; i < header.length ; i ++){
+      var cell = document.createElement('th');
+      cell.textContent = header[i];
+      headerRow.appendChild(cell);
+    }
+
+    // Populate the results table
+    var resultsTable = document.getElementById("results-table-body");
+    resultsTable.innerHTML = ""; // Clear previous results
+
+    results.data.forEach(function(result) {
+      var row = resultsTable.insertRow();
+      
+      for ( var i = 0; i < header.length ; i ++){
+        var cell = row.insertCell(i);
+        cell.innerHTML = result[header[i]];
+      }
+    });
+
+  }
+
+function handleKeyPress(event) {
+    if (event.key == "Enter") {
+         search();
+    }
+}
+
+    function updateCheckboxes(values) {
+      // Get all checkboxes in the form
+      const checkboxes = document.querySelectorAll('input[name=tables]');
+
+      checkboxes.forEach(checkbox => {
+        // Check if the checkbox's value is in the array
+        if (values.includes(checkbox.value)) {
+          checkbox.checked = true; // Check the checkbox
+        } else {
+          checkbox.checked = false; // Uncheck the checkbox
+        }
+      });
+    }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    const queryString = window.location.search;
+    const urlParams = new URLSearchParams(queryString);
+    var query = urlParams.get('q');
+    var queryTables = urlParams.get('tables')
+    var tables;
+    if ( !queryTables || queryTables == ''){
+      tables = ["var-usages"];
+    } else{
+      tables = urlParams.get('tables').split(',');
+    }
+
+    updateCheckboxes(tables);
+
+    if (query){
+      document.getElementById("search-input").value = query;
+      search();
+    }
+  });
+
+</script>
+</head>
+<body>
+<nav class="navbar navbar-expand-lg navbar-light bg-light">
+  <a class="navbar-brand" href="#">Cloogle</a>
+  <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+    <span class="navbar-toggler-icon"></span>
+  </button>
+  <div class="collapse navbar-collapse" id="navbarNav">
+    <ul class="navbar-nav">
+      <li class="nav-item active">
+        <a class="nav-link" href="#">Doc Search <span class="sr-only">(current)</span></a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="about.html">About</a>
+      </li>
+      <!-- <li class="nav-item"> -->
+      <!--   <a class="nav-link" href="#">Vars</a> -->
+      <!-- </li> -->
+      <!-- <li class="nav-item"> -->
+      <!--   <a class="nav-link" href="https://github.com">GitHub</a> -->
+      <!-- </li> -->
+    </ul>
+  </div>
+</nav>
+
+<div class="container">
+    <div class="search-bar">
+      <input type="text" id="search-input" class="form-control" placeholder="Search..." onkeypress="handleKeyPress(event)">
+      <button class="btn btn-primary ml-2" onclick="search()">Search</button>
+    </div>
+    <div id="status" class="text-muted" ></div>
+
+    <!-- Checkboxes -->
+    <div>
+
+{% for table in tables %}
+<div class="form-check form-check-inline">
+  <input class="form-check-input" name="tables" type="checkbox" id="cb-{{table}}" value="{{table}}">
+  <label class="form-check-label" for="cb-{{table}}">{{table}}</label>
+</div>
+{% endfor %}
+      </div>
+
+  <div class="search-results">
+    <table class="table">
+      <thead id="results-table-header">
+      </thead>
+      <tbody id="results-table-body">
+        <!-- Results will be populated here -->
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+  // JavaScript function to simulate search and POST request
+  // ...
+</script>
+
+<!-- Bootstrap JS and dependencies -->
+<!-- <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js"></script> -->
+<!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js"></script> -->
+<!-- <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"></script> -->
+</body>
+</html>

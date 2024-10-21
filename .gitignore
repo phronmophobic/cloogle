@@ -20,3 +20,4 @@ analysis.edn.gz
 *.gguf
 hs_err_*
 *.db
+/db

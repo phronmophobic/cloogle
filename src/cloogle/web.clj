@@ -9,6 +9,10 @@
             [com.phronemophobic.usearch :as usearch]
             [wkok.openai-clojure.api :as openai]
 
+            ;; db stuff
+            [honey.sql :as sql]
+            [next.jdbc :as jdbc]
+
             ;; web stuff
             [ring.adapter.jetty9 :refer [run-jetty]]
             [ring.middleware.defaults :as ring-defaults]
@@ -23,6 +27,17 @@
             hiccup.page)
   (:import java.util.concurrent.Executors))
 (def bge-path "ggml-model-f16.gguf")
+
+(def db {:dbtype "sqlite"
+         :dbname "db/dewey.sqlite"})
+
+(defn q
+  "Runs a honey sql query on the sqlite db"
+  [m]
+  (with-open [conn (jdbc/get-connection db)]
+    (jdbc/execute! db (sql/format
+                       m
+                       {:quoted true}))))
 
 (defonce ctx
   (delay
@@ -215,47 +230,186 @@
        :data results})
      :headers {"Content-Type" "application/json"}}))
 
+
+
+(defmulti search-type (fn [type name]
+                        type))
+
+(def kw->namespace-name-keys
+  {:var-definitions [:ns :name]
+   :var-usages [:to :name]
+   :protocol-impls [:protocol-ns :protocol-name]
+   :keywords [:ns :name]
+   :namespace-definitions [nil :name]
+   :instance-invocations [nil :method-name]
+   :locals [nil :name]
+   :namespace-usages [nil :to]
+   :java-class-usages [nil :class]})
+
+(defmacro def-search-types []
+  `(do
+     ~@(for [[table [ns-key name-key]] kw->namespace-name-keys]
+         `(defmethod search-type ~table
+            [~'_ ~'name]
+            (let [~'ns (namespace ~'name)
+                  ~'name (clojure.core/name ~'name)]
+              {:from ~table
+               :where [:and
+                       ~(when ns-key
+                          `(when (seq ~'ns)
+                             [:= ~'ns ~ns-key]))
+                       [:= ~'name ~name-key]]})))))
+
+(def-search-types)
+
+
+(defn search-name
+  "Searches for name and filters by types.
+
+  Types is a set of keywords. Valid keywords are:
+  :var-definitions
+  :protocol-impls
+  :keywords
+  :namespace-definitions
+  :instance-invocations
+  :locals
+  :namespace-usages
+  :java-class-usages"
+  [name types]
+  (when (not (every? kw->namespace-name-keys types))
+    (throw (ex-info "Unknown type"
+                    {:types types})))
+  (let [name (edn/read-string name)]
+    (into []
+          (mapcat
+           (fn [type]
+             (let [m (search-type type name)
+
+                   m (-> m
+                         (update :select into [:repo :sha
+                                               :filename
+                                               :name-row
+                                               :row])
+                         (assoc :inner-join [:basis [:and
+                                                     [:= :basis-id :basis/id]]]
+                                :limit 200))
+                   results (q m)]
+               (eduction
+                (map (fn [m]
+                       (assoc m
+                              :filename (get m (keyword (clojure.core/name type) "filename"))
+                              :row (or (get m (keyword (clojure.core/name type) "row"))
+                                       (get m (keyword (clojure.core/name type) "name-row"))))))
+                results))))
+          types)))
+
+(defn search-name-handler [data]
+  (let [{:strs [search tables]} data
+        tables (into []
+                     (map keyword)
+                     tables)
+        results
+        (into []
+              (map
+               (fn [{:keys [basis/repo basis/sha filename row]}]
+                 {:repo (->html [:a {:href
+                                          (str
+                                           "https://github.com/"
+                                           repo)}
+                                 repo])
+                  :filename (->html [:a {:href
+                                         (str
+                                          "https://github.com/"
+                                          repo
+                                          "/blob/"
+                                          sha
+                                          "/"
+                                          filename
+                                          "#L"
+                                          row)}
+                                     filename])}))
+
+              (search-name search tables))]
+    {:status 200
+     :body
+     (json/write-str
+      {:header ["repo" "filename"]
+       :data results})
+     :headers {"Content-Type" "application/json"}}))
+
+(defn with-404 [handler404
+                subroute]
+  (conj
+   (into [] subroute)
+   [true handler404]))
+
 (def routes
   (bidi.ring/make-handler
-   ["/" {
-         ""
-         (fn [req]
-           (res/redirect "/doc-search.html" ))
+   ["/"
+    (with-404
+      (constantly
+       {:status 404
+        :headers {"Content-Type" "text/html"}})
+      {""
+       (fn [req]
+         (res/redirect "/doc-search.html" ))
 
-         "favicon.ico" (fn [req]
-                         (res/resource-response "favicon.ico"))
-         "search-docs"
-         {:post search-docs-handler}
-         "doc-search.html"
-         (fn [req]
-           {:status 200,
-            :headers {"Content-Type" "text/html"}
-            :body (selmer/render-file "doc-search.html"
-                                      {:anti-forgery-token
-                                       ring.middleware.anti-forgery/*anti-forgery-token*})})
+       "search-name"
+       {:post
+        (fn [req]
+          (let [data (with-open [is (:body req)
+                                 rdr (io/reader is)]
+                       (json/read rdr))]
+            (search-name-handler data)))}
 
-         "about.html"
-         (fn [req]
-           {:status 200,
-            :headers {"Content-Type" "text/html"}
-            :body (selmer/render-file "about.html"
-                                      {})})
+       "search-name.json"
+       {:get
+        (fn [req]
+          (let [params (:query-params req)
+                data {"search" (get params "q")
+                      "tables" (str/split (get params "tables")
+                                          #",")}]
+            (search-name-handler data)))}
 
-         true (constantly
-               {:status 404
-                :headers {"Content-Type" "text/html"}})}]))
+       "search-name.html"
+       (fn [req]
+         {:status 200,
+          :headers {"Content-Type" "text/html"}
+          :body (selmer/render-file "search-name.html"
+                                    {:tables (->> (keys kw->namespace-name-keys)
+                                                  (map name))
+                                     :anti-forgery-token
+                                     ring.middleware.anti-forgery/*anti-forgery-token*})})
 
+       "favicon.ico" (fn [req]
+                       (res/resource-response "favicon.ico"))
+       "search-docs"
+       {:post search-docs-handler}
+       "doc-search.html"
+       (fn [req]
+         {:status 200,
+          :headers {"Content-Type" "text/html"}
+          :body (selmer/render-file "doc-search.html"
+                                    {:anti-forgery-token
+                                     ring.middleware.anti-forgery/*anti-forgery-token*})})
+
+       "about.html"
+       (fn [req]
+         {:status 200,
+          :headers {"Content-Type" "text/html"}
+          :body (selmer/render-file "about.html"
+                                    {})})})]))
 
 (defn wrap-errors
-  [handler]
-  (fn [request]
-    (try
-      (handler request)
-      (catch Exception e
-        (clojure.pprint/pprint e)
-        {:status 500
-         :headers {"Content-Type" "text/html"}
-         :body (str "There was an error. Please try again later.")}))))
+    [handler]
+    (fn [request]
+      (try
+        (handler request)
+        (catch Exception e
+          (clojure.pprint/pprint e)
+          {:status 500
+           :headers {"Content-Type" "text/html"}
+           :body (str "There was an error. Please try again later.")}))))
 
 (def app
   ;; routes

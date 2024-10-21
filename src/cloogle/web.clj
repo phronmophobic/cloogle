@@ -326,25 +326,26 @@
                      tables)
         results
         (into []
-              (map
-               (fn [{:keys [basis/repo basis/sha filename row]}]
-                 {:repo (->html [:a {:href
+              (comp
+               (map
+                (fn [{:keys [basis/repo basis/sha filename row]}]
+                  {:repo (->html [:a {:href
+                                      (str
+                                       "https://github.com/"
+                                       repo)}
+                                  repo])
+                   :filename (->html [:a {:href
                                           (str
                                            "https://github.com/"
-                                           repo)}
-                                 repo])
-                  :filename (->html [:a {:href
-                                         (str
-                                          "https://github.com/"
-                                          repo
-                                          "/blob/"
-                                          sha
-                                          "/"
-                                          filename
-                                          "#L"
-                                          row)}
-                                     filename])}))
-
+                                           repo
+                                           "/blob/"
+                                           sha
+                                           "/"
+                                           filename
+                                           "#L"
+                                           row)}
+                                      filename])}))
+               (distinct))
               (name-search search tables))]
     {:status 200
      :body

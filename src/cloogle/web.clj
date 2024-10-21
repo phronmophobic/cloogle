@@ -246,6 +246,22 @@
    :namespace-usages [nil :to]
    :java-class-usages [nil :class]})
 
+(defn index-columns! []
+  (let [conn (jdbc/get-connection db)]
+    (doseq [[table [col1 col2]] kw->namespace-name-keys]
+      (let [idx-name (keyword
+                      (str/join "_"
+                                (eduction
+                                 (filter some?)
+                                 (map name)
+                                 [:idx table col1 col2])))
+            stmt (sql/format {:create-index [idx-name (into [table]
+                                                            (filter some?)
+                                                            [col2 col1])]}
+                             {:quoted true})]
+        (println stmt)
+        (jdbc/execute! conn stmt)))))
+
 (defmacro def-search-types []
   `(do
      ~@(for [[table [ns-key name-key]] kw->namespace-name-keys]

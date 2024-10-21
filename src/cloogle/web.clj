@@ -295,7 +295,7 @@
   (when (not (every? kw->namespace-name-keys types))
     (throw (ex-info "Unknown type"
                     {:types types})))
-  (let [name (edn/read-string name)]
+  (let [name (symbol name)]
     (into []
           (mapcat
            (fn [type]

@@ -263,7 +263,7 @@
 (def-search-types)
 
 
-(defn search-name
+(defn name-search
   "Searches for name and filters by types.
 
   Types is a set of keywords. Valid keywords are:
@@ -303,7 +303,7 @@
                 results))))
           types)))
 
-(defn search-name-handler [data]
+(defn name-search-handler [data]
   (let [{:strs [search tables]} data
         tables (into []
                      (map keyword)
@@ -329,7 +329,7 @@
                                           row)}
                                      filename])}))
 
-              (search-name search tables))]
+              (name-search search tables))]
     {:status 200
      :body
      (json/write-str
@@ -354,28 +354,28 @@
        (fn [req]
          (res/redirect "/doc-search.html" ))
 
-       "search-name"
+       "name-search"
        {:post
         (fn [req]
           (let [data (with-open [is (:body req)
                                  rdr (io/reader is)]
                        (json/read rdr))]
-            (search-name-handler data)))}
+            (name-search-handler data)))}
 
-       "search-name.json"
+       "name-search.json"
        {:get
         (fn [req]
           (let [params (:query-params req)
                 data {"search" (get params "q")
                       "tables" (str/split (get params "tables")
                                           #",")}]
-            (search-name-handler data)))}
+            (name-search-handler data)))}
 
-       "search-name.html"
+       "name-search.html"
        (fn [req]
          {:status 200,
           :headers {"Content-Type" "text/html"}
-          :body (selmer/render-file "search-name.html"
+          :body (selmer/render-file "name-search.html"
                                     {:tables (->> (keys kw->namespace-name-keys)
                                                   (map name))
                                      :anti-forgery-token

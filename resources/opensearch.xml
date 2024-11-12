@@ -1,0 +1,9 @@
+<OpenSearchDescription xmlns="http://a9.com/-/spec/opensearch/1.1/"
+                      xmlns:moz="http://www.mozilla.org/2006/browser/search/">
+  <ShortName>Cloogle</ShortName>
+  <Description>Search Clojure Functions</Description>
+  <InputEncoding>UTF-8</InputEncoding>
+  <Image width="16" height="16" type="image/x-icon">https://cloogle.phronemophobic.com/favicon.ico</Image>
+  <Url type="text/html" method="get" template="https://cloogle.phronemophobic.com/doc-search.html?q={searchTerms}&amp;ref=opensearch"/>
+  <moz:SearchForm>https://cloogle.phronemophobic.com/doc-search.html</moz:SearchForm>
+</OpenSearchDescription>

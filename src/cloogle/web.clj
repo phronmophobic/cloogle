@@ -410,6 +410,10 @@
 
        "favicon.ico" (fn [req]
                        (res/resource-response "favicon.ico"))
+
+       "opensearch.xml" (fn [req]
+                          (res/resource-response "opensearch.xml"))
+
        "search-docs"
        {:post search-docs-handler}
        "doc-search.html"

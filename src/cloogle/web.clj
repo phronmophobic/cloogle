@@ -137,6 +137,7 @@
         :embedding)))
 
 (defn search-openai* [s n]
+  (prn "searching " s)
   (let [emb (get-openai-embedding s)
         _ (when (not= (count emb)
                       1536)
@@ -291,68 +292,77 @@
   :locals
   :namespace-usages
   :java-class-usages"
-  [name types]
-  (when (not (every? kw->namespace-name-keys types))
-    (throw (ex-info "Unknown type"
-                    {:types types})))
-  (let [name (symbol name)]
-    (into []
-          (mapcat
-           (fn [type]
-             (let [m (search-type type name)
+  ([name types]
+   (name-search name types {}))
+  ([name types opts]
+   (when (not (every? kw->namespace-name-keys types))
+     (throw (ex-info "Unknown type"
+                     {:types types})))
+   (let [name (symbol name)
+         limit (get opts :limit 200)]
+     (into []
+           (mapcat
+            (fn [type]
+              (let [m (search-type type name)
 
-                   m (-> m
-                         (update :select into [:repo :sha
-                                               :filename
-                                               :name-row
-                                               :row])
-                         (assoc :inner-join [:basis [:and
-                                                     [:= :basis-id :basis/id]]]
-                                :limit 200))
-                   results (q m)]
-               (eduction
-                (map (fn [m]
-                       (assoc m
-                              :filename (get m (keyword (clojure.core/name type) "filename"))
-                              :row (or (get m (keyword (clojure.core/name type) "row"))
-                                       (get m (keyword (clojure.core/name type) "name-row"))))))
-                results))))
-          types)))
+                    m (-> m
+                          (update :select into [:repo :sha
+                                                :filename
+                                                :name-row
+                                                :row])
+                          (assoc :inner-join [:basis [:and
+                                                      [:= :basis-id :basis/id]]]))
+                    m (if limit
+                        (assoc m :limit limit)
+                        m)
+                    
+                    results (q m)]
+                (eduction
+                 (map (fn [m]
+                        (assoc m
+                               :filename (get m (keyword (clojure.core/name type) "filename"))
+                               :row (or (get m (keyword (clojure.core/name type) "row"))
+                                        (get m (keyword (clojure.core/name type) "name-row"))))))
+                 results))))
+           types))))
 
-(defn name-search-handler [data]
-  (let [{:strs [search tables]} data
-        tables (into []
-                     (map keyword)
-                     tables)
-        results
-        (into []
-              (comp
-               (map
-                (fn [{:keys [basis/repo basis/sha filename row]}]
-                  {:repo (->html [:a {:href
-                                      (str
-                                       "https://github.com/"
-                                       repo)}
-                                  repo])
-                   :filename (->html [:a {:href
-                                          (str
-                                           "https://github.com/"
-                                           repo
-                                           "/blob/"
-                                           sha
-                                           "/"
-                                           filename
-                                           "#L"
-                                           row)}
-                                      filename])}))
-               (distinct))
-              (name-search search tables))]
-    {:status 200
-     :body
-     (json/write-str
-      {:header ["repo" "filename"]
-       :data results})
-     :headers {"Content-Type" "application/json"}}))
+(defn name-search-handler
+  ([data]
+   (name-search-handler data {}))
+  ([data opts]
+   (let [{:strs [search tables]} data
+         tables (into []
+                      (map keyword)
+                      tables)
+         results
+         (into []
+               (comp
+                (map
+                 (fn [{:keys [basis/repo basis/sha filename row]}]
+                   {:repo (->html [:a {:href
+                                       (str
+                                        "https://github.com/"
+                                        repo)}
+                                   repo])
+                    :filename (->html [:a {:href
+                                           (str
+                                            "https://github.com/"
+                                            repo
+                                            "/blob/"
+                                            sha
+                                            "/"
+                                            filename
+                                            "#L"
+                                            row)}
+                                       filename])}))
+                (distinct))
+               (name-search search tables opts))]
+     {:status 200
+      :body
+      (json/write-str
+       {:header ["repo" "filename"]
+        :data results})
+      :headers {"Content-Type" "application/json"}})))
 
 (defn with-404 [handler404
                 subroute]
@@ -386,7 +396,7 @@
                 data {"search" (get params "q")
                       "tables" (str/split (get params "tables")
                                           #",")}]
-            (name-search-handler data)))}
+            (name-search-handler data {:limit nil})))}
 
        "name-search.html"
        (fn [req]

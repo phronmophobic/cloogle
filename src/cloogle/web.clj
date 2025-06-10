@@ -361,7 +361,46 @@
       :body
       (json/write-str
        {:header ["repo" "filename"]
-        :data results})
+        :data results})})))
+
+(defn name-search-json
+  ([data]
+   (name-search-handler data {}))
+  ([data opts]
+   (let [{:strs [search tables]} data
+         tables (into []
+                      (map keyword)
+                      tables)
+         results
+         (into []
+               (comp
+                (map
+                 (fn [{:keys [basis/repo basis/sha filename row]}]
+                   {:repo repo
+                    :repo-url (str "https://github.com/" repo)
+                    :filename filename
+                    :row row
+                    :sha sha
+                    :filename-url (str
+                                   "https://github.com/"
+                                   repo
+                                   "/blob/"
+                                   sha
+                                   "/"
+                                   filename
+                                   "#L"
+                                   row)}))
+                (distinct))
+               (name-search search tables opts))]
+     {:status 200
+      :body
+      (let [input-stream (java.io.PipedInputStream.)
+            output-stream (java.io.PipedOutputStream. input-stream)]
+        (future
+          (with-open [output-stream output-stream
+                      writer (io/writer output-stream)]
+            (json/write results writer)))
+       input-stream)
       :headers {"Content-Type" "application/json"}})))
 
 (defn with-404 [handler404
@@ -396,7 +435,7 @@
                 data {"search" (get params "q")
                       "tables" (str/split (get params "tables")
                                           #",")}]
-            (name-search-handler data {:limit nil})))}
+            (name-search-json data {:limit 10000})))}
 
        "name-search.html"
        (fn [req]

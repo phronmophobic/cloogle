@@ -33,6 +33,11 @@
     searchParams.set("tables", tables.join(','));
     document.title = 'Cloogle - ' + s;
     window.history.pushState({}, "", '?' + searchParams.toString());
+    
+      var jsonlink = document.getElementById("json-results");
+      jsonlink.style.cssText = '';
+      jsonlink.textContent = "results.json";
+      jsonlink.setAttribute("href", "/name-search.json?" + searchParams.toString());
   }
 
   // This function simulates making a POST request with JSON encoded data
@@ -195,6 +200,9 @@ function handleKeyPress(event) {
       </div>
 
   <div class="search-results">
+    <div class="col text-right">
+      <a id="json-results" style="display:none" class="btn btn-link"></a>
+    </div>
     <table class="table">
       <thead id="results-table-header">
       </thead>
